@@ -1,0 +1,103 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: simpleeshop-postgres
+    environment:
+      POSTGRES_USER: techhub
+      POSTGRES_PASSWORD: '!@#123Abc'
+      POSTGRES_DB: techgearhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techhub -d techgearhub"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for session storage
+  redis:
+    image: redis:7-alpine
+    container_name: simpleeshop-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # SimpleEshop Application
+  app:
+    image: niroth36/simpleeshop:latest
+    container_name: simpleeshop-app
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: techhub
+      DB_PASSWORD: '!@#123Abc'
+      DB_NAME: techgearhub
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ./web-app/public:/usr/src/app/public
+
+      #minio storage
+  minio:
+    image: minio/minio:latest
+    container_name: simpleeshop-minio
+    ports:
+      - "9000:9000"     # S3 Console
+      - "9001:9001"     # MinIO Admin Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address :9001
+    networks:
+      - simpleeshop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  simpleeshop-network:
+    driver: bridge

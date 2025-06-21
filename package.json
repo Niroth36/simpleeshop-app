@@ -1,0 +1,15 @@
+{
+  "name": "simpleeshop-app",
+  "version": "1.0.0",
+  "description": "SimpleEshop E-commerce Application",
+  "main": "web-app/server.js",
+  "scripts": {
+    "start": "cd web-app && npm start",
+    "dev": "cd web-app && npm run dev",
+    "test": "cd web-app && npm test",
+    "lint": "cd web-app && npm run lint",
+    "build": "cd web-app && npm run build"
+  },
+  "keywords": ["ecommerce", "nodejs", "express"],
+  "author": "Niroth"
+}
