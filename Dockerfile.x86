@@ -1,56 +1,42 @@
 # Multi-stage build for x86_64 production deployment using Alpine
 FROM node:18-alpine AS builder
-
 # Set working directory
 WORKDIR /app
-
-# Copy package files
-COPY web-app/server/package*.json ./
-
+# Copy package files from root
+COPY package*.json ./
 # Install dependencies (including dev dependencies for building)
 RUN npm ci --include=dev && npm cache clean --force
 
 # Production image
 FROM node:18-alpine
-
 # Install system dependencies for production (Alpine packages)
 RUN apk add --no-cache \
     curl \
     ca-certificates
-
 # Create app directory
 WORKDIR /app
-
 # Create non-root user for security (Alpine way)
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 -G nodejs
-
-# Copy package files
-COPY web-app/server/package*.json ./
-
+# Copy package files from root
+COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --only=production && npm cache clean --force
-
 # Copy application code based on your actual structure
-COPY web-app/ ./web-app/
-COPY database/ ./database/
-
-# Ensure the server file exists and is executable
-RUN ls -la web-app/server/ && \
-    test -f web-app/server/server_postgresql.js
-
+COPY server/ ./server/
+COPY public/ ./public/
+# Copy other files if they exist
+COPY fixed-handler.js ./
+# Check what's actually in the server directory
+RUN ls -la server/
 # Set proper ownership
 RUN chown -R nextjs:nodejs /app
-
 # Switch to non-root user
 USER nextjs
-
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/ || exit 1
-
 # Expose port
 EXPOSE 3000
-
-# Start application
-CMD ["node", "web-app/server/server_postgresql.js"]
+# Start application - adjust this based on what's actually in your server directory
+CMD ["node", "server/server_postgresql.js"]
